@@ -43,7 +43,7 @@ spec:
           annotations:
             description: '磁盘读延迟过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
             summary: 磁盘读延迟过高
-          expr: rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m])>1
+          expr: rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m])>20
           for: 2m
           labels:
             severity: critical
@@ -51,7 +51,7 @@ spec:
           annotations:
             description: '磁盘写延迟过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
             summary: 磁盘写延迟过高
-          expr: rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m])>1
+          expr: rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m])>20
           for: 2m
           labels:
             severity: critical
