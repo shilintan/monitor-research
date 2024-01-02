@@ -1,0 +1,22 @@
+---
+# Source: loki-distributed/templates/distributor/servicemonitor-distributor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: release-name-loki-distributed-distributor
+  labels:
+    helm.sh/chart: loki-distributed-0.76.1
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "2.9.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: distributor
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki-distributed
+      app.kubernetes.io/instance: release-name
+      app.kubernetes.io/component: distributor
+  endpoints:
+    - port: http
+      scheme: http

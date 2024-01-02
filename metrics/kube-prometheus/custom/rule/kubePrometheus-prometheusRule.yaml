@@ -1,0 +1,89 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: kube-prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    prometheus: k8s
+    role: alert-rules
+  name: kube-prometheus-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: general.rules
+    rules:
+    - alert: TargetDown
+      annotations:
+        description: '{{ $labels.namespace }} 命名空间中的 {{ printf "%.4g" $value }}% 的 {{ $labels.job }}/{{ $labels.service }} 目标已关闭。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/general/targetdown
+        summary: 一个或多个目标无法到达。
+      expr: 100 * (count(up == 0) BY (job, namespace, service) / count(up) BY (job, namespace, service)) > 10
+      for: 10m
+      labels:
+        severity: warning
+
+
+#    - alert: Watchdog
+#      annotations:
+#        description: |
+#          这是一个警报，旨在确保整个警报管道正常运行。
+#          此警报始终会触发，因此它应该始终在 Alertmanager 中触发
+#          并始终向接收器开火。 与各种通知集成
+#          当此警报未触发时发送通知的机制。 例如
+#           PagerDuty 中的“DeadMansSnitch”集成。
+#        summary: '应始终触发警报以证明 Alertmanager 正常工作。'
+#      expr: vector(1)
+#      labels:
+#        severity: critical
+
+
+#    - alert: InfoInhibitor
+#      annotations:
+#        description: |
+#          这是用于抑制信息警报的警报。
+#          就其本身而言，信息级警报有时非常嘈杂，但与其他警报结合使用时它们是相关的其他警报。
+#          每当出现严重程度=“信息”警报时，此警报就会触发，而当另一个警报带有 “警告”或“严重”的严重性开始在同一名称空间上触发。
+#          此警报应路由到空接收器并配置为禁止严重性=“info”的警报。
+##        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/general/infoinhibitor
+#        summary: 信息级警报抑制。
+#      expr: ALERTS{severity = "info"} == 1 unless on(namespace) ALERTS{alertname !=
+#        "InfoInhibitor", severity =~ "warning|critical", alertstate="firing"} == 1
+#      labels:
+#        severity: none
+  - name: node-network
+    rules:
+    - alert: NodeNetworkInterfaceFlapping
+      annotations:
+        description: '网络接口“{{ $labels.device }}”经常在节点导出器 {{ $labels.namespace }}/{{ $labels.pod }} 上更改其启动状态'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/general/nodenetworkinterfaceflapping
+        summary: '网络接口经常改变其状态'
+      expr: |
+        changes(node_network_up{job="node-exporter",device!~"veth.+"}[2m]) > 2
+      for: 2m
+      labels:
+        severity: warning
+  - name: kube-prometheus-node-recording.rules
+    rules:
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait",mode!="steal"}[3m]))
+        BY (instance)
+      record: instance:node_cpu:rate:sum
+    - expr: sum(rate(node_network_receive_bytes_total[3m])) BY (instance)
+      record: instance:node_network_receive_bytes:rate:sum
+    - expr: sum(rate(node_network_transmit_bytes_total[3m])) BY (instance)
+      record: instance:node_network_transmit_bytes:rate:sum
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait",mode!="steal"}[5m]))
+        WITHOUT (cpu, mode) / ON(instance) GROUP_LEFT() count(sum(node_cpu_seconds_total)
+        BY (instance, cpu)) BY (instance)
+      record: instance:node_cpu:ratio
+    - expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait",mode!="steal"}[5m]))
+      record: cluster:node_cpu:sum_rate5m
+    - expr: cluster:node_cpu:sum_rate5m / count(sum(node_cpu_seconds_total) BY (instance,
+        cpu))
+      record: cluster:node_cpu:ratio
+  - name: kube-prometheus-general.rules
+    rules:
+    - expr: count without(instance, pod, node) (up == 1)
+      record: count:up1
+    - expr: count without(instance, pod, node) (up == 0)
+      record: count:up0

@@ -1,0 +1,316 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 1.5.0
+    prometheus: k8s
+    role: alert-rules
+  name: node-exporter-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: node-exporter
+    rules:
+    - alert: NodeFilesystemSpaceFillingUp
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用空间，并且即将填满。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemspacefillingup
+        summary: 预计文件系统将在未来 24 小时内耗尽空间。
+      expr: |
+        (
+          node_filesystem_avail_bytes{job="node-exporter",fstype!=""} / node_filesystem_size_bytes{job="node-exporter",fstype!=""} * 100 < 15
+        and
+          predict_linear(node_filesystem_avail_bytes{job="node-exporter",fstype!=""}[6h], 24*60*60) < 0
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: warning
+    - alert: NodeFilesystemSpaceFillingUp
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用空间，并且正在快速填满。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemspacefillingup
+        summary: 预计文件系统将在接下来的 4 小时内耗尽空间。
+      expr: |
+        (
+          node_filesystem_avail_bytes{job="node-exporter",fstype!=""} / node_filesystem_size_bytes{job="node-exporter",fstype!=""} * 100 < 10
+        and
+          predict_linear(node_filesystem_avail_bytes{job="node-exporter",fstype!=""}[6h], 4*60*60) < 0
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: critical
+    - alert: NodeFilesystemAlmostOutOfSpace
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用空间。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutofspace
+        summary: 文件系统剩余空间不足 5%。
+      expr: |
+        (
+          node_filesystem_avail_bytes{job="node-exporter",fstype!=""} / node_filesystem_size_bytes{job="node-exporter",fstype!=""} * 100 < 5
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 30m
+      labels:
+        severity: warning
+    - alert: NodeFilesystemAlmostOutOfSpace
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用空间。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutofspace
+        summary: 文件系统剩余空间不足 3%。
+      expr: |
+        (
+          node_filesystem_avail_bytes{job="node-exporter",fstype!=""} / node_filesystem_size_bytes{job="node-exporter",fstype!=""} * 100 < 3
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 30m
+      labels:
+        severity: critical
+    - alert: NodeFilesystemFilesFillingUp
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用 inode，并且即将填满。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemfilesfillingup
+        summary: 预计文件系统将在接下来的 24 小时内耗尽 inode。
+      expr: |
+        (
+          node_filesystem_files_free{job="node-exporter",fstype!=""} / node_filesystem_files{job="node-exporter",fstype!=""} * 100 < 40
+        and
+          predict_linear(node_filesystem_files_free{job="node-exporter",fstype!=""}[6h], 24*60*60) < 0
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: warning
+    - alert: NodeFilesystemFilesFillingUp
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用 inode，并且正在快速填满。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemfilesfillingup
+        summary: 预计文件系统将在接下来的 4 小时内耗尽 inode。
+      expr: |
+        (
+          node_filesystem_files_free{job="node-exporter",fstype!=""} / node_filesystem_files{job="node-exporter",fstype!=""} * 100 < 20
+        and
+          predict_linear(node_filesystem_files_free{job="node-exporter",fstype!=""}[6h], 4*60*60) < 0
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: critical
+    - alert: NodeFilesystemAlmostOutOfFiles
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用 inode。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutoffiles
+        summary: 文件系统剩余的索引节点不足 5%。
+      expr: |
+        (
+          node_filesystem_files_free{job="node-exporter",fstype!=""} / node_filesystem_files{job="node-exporter",fstype!=""} * 100 < 5
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: warning
+    - alert: NodeFilesystemAlmostOutOfFiles
+      annotations:
+        description: '{{ $labels.device }} 上位于 {{ $labels.instance }} 的文件系统只剩下 {{ printf "%.2f" $value }}% 可用 inode。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefilesystemalmostoutoffiles
+        summary: 文件系统剩余的索引节点不足 3%。
+      expr: |
+        (
+          node_filesystem_files_free{job="node-exporter",fstype!=""} / node_filesystem_files{job="node-exporter",fstype!=""} * 100 < 3
+        and
+          node_filesystem_readonly{job="node-exporter",fstype!=""} == 0
+        )
+      for: 1h
+      labels:
+        severity: critical
+    - alert: NodeNetworkReceiveErrs
+      annotations:
+        description: '{{ $labels.instance }} 接口 {{ $labels.device }} 在过去两分钟内遇到 {{ printf "%.0f" $value }} 接收错误。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodenetworkreceiveerrs
+        summary: 网络接口报告许多接收错误。
+      expr: |
+        rate(node_network_receive_errs_total[2m]) / rate(node_network_receive_packets_total[2m]) > 0.01
+      for: 1h
+      labels:
+        severity: warning
+    - alert: NodeNetworkTransmitErrs
+      annotations:
+        description: '{{ $labels.instance }} 接口 {{ $labels.device }} 在过去两分钟内遇到 {{ printf "%.0f" $value }} 传输错误。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodenetworktransmiterrs
+        summary: 网络接口报告许多传输错误。
+      expr: |
+        rate(node_network_transmit_errs_total[2m]) / rate(node_network_transmit_packets_total[2m]) > 0.01
+      for: 1h
+      labels:
+        severity: warning
+    - alert: NodeHighNumberConntrackEntriesUsed
+      annotations:
+        description: '使用了 {{ $value| humanizePercentage }} 的 conntrack 条目。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodehighnumberconntrackentriesused
+        summary: conntrack 的数量已接近极限。
+      expr: |
+        (node_nf_conntrack_entries / node_nf_conntrack_entries_limit) > 0.75
+      labels:
+        severity: warning
+    - alert: NodeTextFileCollectorScrapeError
+      annotations:
+        description: 节点导出器文本文件收集器无法抓取。
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodetextfilecollectorscrapeerror
+        summary: 节点导出器文本文件收集器无法抓取。
+      expr: |
+        node_textfile_scrape_error{job="node-exporter"} == 1
+      labels:
+        severity: warning
+#    - alert: NodeClockSkewDetected
+#      annotations:
+#        description: '{{ $labels.instance }} 上的时钟不同步超过 300 秒。 确保在此主机上正确配置 NTP。'
+##        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodeclockskewdetected
+#        summary: 检测到时钟偏差。
+#      expr: |
+#        (
+#          node_timex_offset_seconds{job="node-exporter"} > 0.05
+#        and
+#          deriv(node_timex_offset_seconds{job="node-exporter"}[5m]) >= 0
+#        )
+#        or
+#        (
+#          node_timex_offset_seconds{job="node-exporter"} < -0.05
+#        and
+#          deriv(node_timex_offset_seconds{job="node-exporter"}[5m]) <= 0
+#        )
+#      for: 10m
+#      labels:
+#        severity: warning
+#    - alert: NodeClockNotSynchronising
+#      annotations:
+#        description: '{{ $labels.instance }} 上的时钟未同步。 确保该主机上配置了 NTP。'
+##        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodeclocknotsynchronising
+#        summary: 时钟不同步。
+#      expr: |
+#        max_over_time(node_timex_sync_status{job="node-exporter"}[20m]) == 0
+#        and
+#        node_timex_maxerror_seconds{job="node-exporter"} >= 16
+#      for: 20m
+#      labels:
+#        severity: warning
+    - alert: NodeRAIDDegraded
+      annotations:
+        description: '由于一个或多个磁盘发生故障，{{ $labels.instance }} 上的 RAID 阵列“{{ $labels.device }}”处于降级状态。 备用驱动器数量不足以自动修复问题。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/noderaiddegraded
+        summary: RAID 阵列降级
+      expr: |
+        node_md_disks_required{job="node-exporter",device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"} - ignoring (state) (node_md_disks{state="active",job="node-exporter",device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}) > 0
+      for: 15m
+      labels:
+        severity: critical
+    - alert: NodeRAIDDiskFailure
+      annotations:
+        description: '{{ $labels.instance }} 上的 RAID 阵列中至少有一个设备发生故障。 数组“{{ $labels.device }}”需要注意，并且可能需要磁盘交换。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/noderaiddiskfailure
+        summary: RAID 阵列中的设备发生故障
+      expr: |
+        node_md_disks{state="failed",job="node-exporter",device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"} > 0
+      labels:
+        severity: warning
+    - alert: NodeFileDescriptorLimit
+      annotations:
+        description: '{{ $labels.instance }} 处的文件描述符限制当前为 {{ printf "%.2f" $value }}%。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefiledescriptorlimit
+        summary: 预计内核很快就会耗尽文件描述符限制。
+      expr: |
+        (
+          node_filefd_allocated{job="node-exporter"} * 100 / node_filefd_maximum{job="node-exporter"} > 70
+        )
+      for: 15m
+      labels:
+        severity: warning
+    - alert: NodeFileDescriptorLimit
+      annotations:
+        description: '{{ $labels.instance }} 处的文件描述符限制当前为 {{ printf "%.2f" $value }}%。'
+#        runbook_url: https://runbooks.prometheus-operator.dev/runbooks/node/nodefiledescriptorlimit
+        summary: 预计内核很快就会耗尽文件描述符限制。
+      expr: |
+        (
+          node_filefd_allocated{job="node-exporter"} * 100 / node_filefd_maximum{job="node-exporter"} > 90
+        )
+      for: 15m
+      labels:
+        severity: critical
+  - name: node-exporter.rules
+    rules:
+    - expr: |
+        count without (cpu, mode) (
+          node_cpu_seconds_total{job="node-exporter",mode="idle"}
+        )
+      record: instance:node_num_cpu:sum
+    - expr: |
+        1 - avg without (cpu) (
+          sum without (mode) (rate(node_cpu_seconds_total{job="node-exporter", mode=~"idle|iowait|steal"}[5m]))
+        )
+      record: instance:node_cpu_utilisation:rate5m
+    - expr: |
+        (
+          node_load1{job="node-exporter"}
+        /
+          instance:node_num_cpu:sum{job="node-exporter"}
+        )
+      record: instance:node_load1_per_cpu:ratio
+    - expr: |
+        1 - (
+          (
+            node_memory_MemAvailable_bytes{job="node-exporter"}
+            or
+            (
+              node_memory_Buffers_bytes{job="node-exporter"}
+              +
+              node_memory_Cached_bytes{job="node-exporter"}
+              +
+              node_memory_MemFree_bytes{job="node-exporter"}
+              +
+              node_memory_Slab_bytes{job="node-exporter"}
+            )
+          )
+        /
+          node_memory_MemTotal_bytes{job="node-exporter"}
+        )
+      record: instance:node_memory_utilisation:ratio
+    - expr: |
+        rate(node_vmstat_pgmajfault{job="node-exporter"}[5m])
+      record: instance:node_vmstat_pgmajfault:rate5m
+    - expr: |
+        rate(node_disk_io_time_seconds_total{job="node-exporter", device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])
+      record: instance_device:node_disk_io_time_seconds:rate5m
+    - expr: |
+        rate(node_disk_io_time_weighted_seconds_total{job="node-exporter", device=~"(/dev/)?(mmcblk.p.+|nvme.+|rbd.+|sd.+|vd.+|xvd.+|dm-.+|md.+|dasd.+)"}[5m])
+      record: instance_device:node_disk_io_time_weighted_seconds:rate5m
+    - expr: |
+        sum without (device) (
+          rate(node_network_receive_bytes_total{job="node-exporter", device!="lo"}[5m])
+        )
+      record: instance:node_network_receive_bytes_excluding_lo:rate5m
+    - expr: |
+        sum without (device) (
+          rate(node_network_transmit_bytes_total{job="node-exporter", device!="lo"}[5m])
+        )
+      record: instance:node_network_transmit_bytes_excluding_lo:rate5m
+    - expr: |
+        sum without (device) (
+          rate(node_network_receive_drop_total{job="node-exporter", device!="lo"}[5m])
+        )
+      record: instance:node_network_receive_drop_excluding_lo:rate5m
+    - expr: |
+        sum without (device) (
+          rate(node_network_transmit_drop_total{job="node-exporter", device!="lo"}[5m])
+        )
+      record: instance:node_network_transmit_drop_excluding_lo:rate5m

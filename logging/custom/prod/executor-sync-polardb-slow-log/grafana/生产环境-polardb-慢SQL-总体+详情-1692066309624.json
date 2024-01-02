@@ -1,0 +1,749 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 33,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "y9RqBBe4z"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "min",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "y9RqBBe4z"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n    t.data_timestamp AS \"time\",\r\n    count( 1 ) AS \"每小时出现次数\"\r\nFROM\r\n    (\r\n        SELECT DISTINCT sql_template_id,\r\n                        data_timestamp\r\n        FROM\r\n            polardb_slow_log\r\n        WHERE\r\n            $__unixEpochFilter(data_timestamp)\r\n          AND db_name IN ( $db_name )\r\n          and sql_template_id in ($sql_template_id)\r\n    ) t\r\nGROUP BY\r\n    t.data_timestamp\r\nORDER BY\r\n    t.data_timestamp",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "慢SQL-模板",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "y9RqBBe4z"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 100,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "min",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "y9RqBBe4z"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "select\r\n    t.data_timestamp AS \"time\",\r\n    count(1) as \"每小时出现次数\"\r\nfrom (\r\n         select data_timestamp\r\n         from polardb_slow_log\r\n         WHERE\r\n             $__unixEpochFilter(data_timestamp)\r\n           and db_name in ($db_name)\r\n           and sql_template_id in ($sql_template_id)\r\n     )t\r\ngroup by data_timestamp\r\nORDER BY data_timestamp",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "慢SQL",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "y9RqBBe4z"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行开始时间"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 168
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "数据库"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 127
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行次数"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 86
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "次数"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 66
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "平均耗时(秒)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 101
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "最大耗时(秒)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 104
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "最小耗时(秒)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 96
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "扫描行数"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 82
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SQL模板ID"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 89
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 6,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "次数"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "y9RqBBe4z"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n    t.id AS 'SQL模板ID',\r\n        t.db_name AS '数据库',\r\n        t.times AS '次数',\r\n        FLOOR( t.avg_qt ) AS '平均耗时(秒)',\r\n        t.max_qt AS '最大耗时(秒)',\r\n        t.min_qt AS '最小耗时(秒)',\r\n        t.parse_row_counts AS '扫描行数',\r\n        t.sql_text AS 'SQL模板'\r\nFROM\r\n    (\r\n        SELECT\r\n            pslt.id,\r\n            pslt.db_name,\r\n            CONVERT ( pslt.sql_text USING utf8 ) sql_text,\r\n            psl.data_timestamp,\r\n            psl.parse_row_counts,\r\n            psl.execution_start_time,\r\n            count( 1 ) AS times,\r\n            avg( psl.query_times ) avg_qt,\r\n            max( psl.query_times ) max_qt,\r\n            min( psl.query_times ) min_qt\r\n        FROM\r\n            polardb_slow_log_template pslt\r\n                LEFT JOIN polardb_slow_log psl ON pslt.db_name = psl.db_name\r\n                AND pslt.id = psl.sql_template_id\r\n        WHERE $__unixEpochFilter(data_timestamp) and pslt.db_name in ($db_name) and pslt.id in ($sql_template_id)\r\n        GROUP BY\r\n            db_name,\r\n            sql_text\r\n    ) t\r\nORDER BY\r\n    t.times DESC",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "慢SQL模板详情",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "y9RqBBe4z"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 144
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "execution_start_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 175
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "sql"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 1644
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行时间"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 178
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行开始时间"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行耗费时间"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 104
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "执行耗费时间(秒)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 124
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "耗时(秒)"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 72
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "数据库"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 95
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "扫描行数"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 88
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 13,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 4,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "耗时(秒)"
+          }
+        ]
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "y9RqBBe4z"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\r\n    execution_start_time as \"执行开始时间\",\r\n    query_times as \"耗时(秒)\",\r\n    db_name as \"数据库\",\r\n    parse_row_counts as '扫描行数',\r\n        convert(sql_text using utf8) \"sql\"\r\nFROM polardb_slow_log\r\nWHERE\r\n    $__unixEpochFilter(data_timestamp)\r\n  and db_name in ($db_name)\r\n  and sql_template_id in ($sql_template_id)\r\nORDER BY data_timestamp",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "慢SQL详细清单",
+      "type": "table"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 37,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "mysql",
+          "uid": "y9RqBBe4z"
+        },
+        "definition": "select distinct db_name from polardb_slow_log order by db_name ",
+        "hide": 0,
+        "includeAll": true,
+        "label": "数据库名称",
+        "multi": true,
+        "name": "db_name",
+        "options": [],
+        "query": "select distinct db_name from polardb_slow_log order by db_name ",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "mysql",
+          "uid": "y9RqBBe4z"
+        },
+        "definition": "select distinct sql_template_id from polardb_slow_log WHERE db_name in ($db_name) order by  sql_template_id",
+        "hide": 0,
+        "includeAll": true,
+        "label": "SQL模板ID",
+        "multi": true,
+        "name": "sql_template_id",
+        "options": [],
+        "query": "select distinct sql_template_id from polardb_slow_log WHERE db_name in ($db_name) order by  sql_template_id",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-2d",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "生产环境-polardb-慢SQL-总体+详情",
+  "uid": "MN5YE2-Mk",
+  "version": 8,
+  "weekStart": ""
+}

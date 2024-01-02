@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    prometheus: k8s
+    role: alert-rules
+  name: middleware-mysql
+  namespace: monitoring
+spec:
+  groups:
+  - name: middleware-mysql
+    rules:
+    - alert: MySQLDown
+      annotations:
+        description: '{{$labels.instance}} 上的 MySQL {{$labels.job}} 未启动。'
+        summary: MySQL not up.
+      expr: mysql_up != 1
+      for: 5m
+      labels:
+        severity: critical

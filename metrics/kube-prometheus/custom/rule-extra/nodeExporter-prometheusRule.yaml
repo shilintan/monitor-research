@@ -1,0 +1,81 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/component: exporter
+    app.kubernetes.io/name: node-exporter
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 1.5.0
+    prometheus: k8s
+    role: alert-rules
+  name: node-exporter-extra-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: node-exporter-extra
+      rules:
+        - alert: NodeCPUHigh
+          annotations:
+            description: 'CPU使用率过高 (目前:{{$value}}%) ({{$labels.instance}}-{{$labels.nodename}})'
+            summary: CPU使用率过高
+          expr: 100-(avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by(instance)* 100) > 80
+          for: 2m
+          labels:
+            severity: critical
+        - alert: NodeCPUWaitHigh
+          annotations:
+            description: 'CPU 等待过高 (目前:{{$value}}%) ({{$labels.instance}}-{{$labels.nodename}})'
+            summary: CPU使用率过高
+          expr: avg(rate(node_cpu_seconds_total{mode="iowait"}[5m])) by(instance)* 100 > 20
+          for: 2m
+          labels:
+            severity: critical
+        - alert: NodeMemoryHigh
+          annotations:
+            description: 'Memory使用率过高 (目前:{{$value}}%) ({{$labels.instance}}-{{$labels.nodename}})'
+            summary: Memory使用率过高
+          expr: round(100- node_memory_MemAvailable_bytes/node_memory_MemTotal_bytes*100) > 90
+          for: 2m
+          labels:
+            severity: critical
+#            超过20ms就会影响使用
+        - alert: NodeDiskReadDelayHigh
+          annotations:
+            description: '磁盘读延迟过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
+            summary: 磁盘读延迟过高
+          expr: rate(node_disk_read_time_seconds_total[5m]) / rate(node_disk_reads_completed_total[5m])>1
+          for: 2m
+          labels:
+            severity: critical
+        - alert: NodeDiskWriteDelayHigh
+          annotations:
+            description: '磁盘写延迟过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
+            summary: 磁盘写延迟过高
+          expr: rate(node_disk_write_time_seconds_total[5m]) / rate(node_disk_writes_completed_total[5m])>1
+          for: 2m
+          labels:
+            severity: critical
+#        - alert: NodeNetworkInHigh
+#          annotations:
+#            description: '网络流入过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
+#            summary: 网络流入过高
+#          expr: irate(node_network_receive_bytes_total{device!~'tap.*|veth.*|br.*|docker.*|virbr*|lo*|cali.*|tun.*|kube.*'}[5m])/1024/1000 > 0.8
+#          for: 2m
+#          labels:
+#            severity: critical
+#        - alert: NodeNetworkOutHigh
+#          annotations:
+#            description: '网络流出过高 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}}--{{$labels.device}})'
+#            summary: 网络流出过高
+#          expr: irate(node_network_transmit_bytes_total{device!~'tap.*|veth.*|br.*|docker.*|virbr*|lo*|cali.*|tun.*|kube.*'}[5m])/1024/1000 > 0.8
+#          for: 2m
+#          labels:
+#            severity: critical
+        - alert: NodeNetworkPortMany
+          annotations:
+            description: '网络端口过多 (目前:{{$value}}s) ({{$labels.instance}}-{{$labels.nodename}})'
+            summary: 网络端口过多
+          expr: node_sockstat_TCP_tw > 30000
+          for: 2m
+          labels:
+            severity: critical

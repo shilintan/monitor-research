@@ -1,0 +1,20 @@
+---
+# Source: loki-distributed/templates/ruler/persistentvolumeclaim-ruler.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-release-name-loki-distributed-ruler
+  labels:
+    helm.sh/chart: loki-distributed-0.76.1
+    app.kubernetes.io/name: loki-distributed
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "2.9.2"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: ruler
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-lvmpv
+  resources:
+    requests:
+      storage: "10Gi"

@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/instance: k8s
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 2.41.0
+  name: prometheus-k8s-out
+  namespace: monitoring
+spec:
+  ports:
+    - name: web
+      port: 9090
+      protocol: TCP
+      targetPort: web
+      nodePort: 30674
+    - name: reloader-web
+      port: 8080
+      protocol: TCP
+      targetPort: reloader-web
+  selector:
+    app.kubernetes.io/component: prometheus
+    app.kubernetes.io/instance: k8s
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+  type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+    app.kubernetes.io/version: 9.3.2
+  name: grafana-out
+  namespace: monitoring
+spec:
+  ports:
+    - name: http
+      port: 3000
+      protocol: TCP
+      targetPort: http
+      nodePort: 30675
+  selector:
+    app.kubernetes.io/component: grafana
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/part-of: kube-prometheus
+  type: NodePort

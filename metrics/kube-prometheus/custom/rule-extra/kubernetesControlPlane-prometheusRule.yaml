@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    prometheus: k8s
+    role: alert-rules
+  name: kubernetes-monitoring-extra-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: kubernetes-apps-extra
+    rules:
+    - alert: PodCPUHigh
+      annotations:
+        description: '容器cpu使用率高 (目前:{{$value}}s) ({{$labels.namespace}}-{{$labels.pod}}--{{$labels.container}}--{{$labels.node}})'
+        summary: 容器cpu使用率高
+      expr: sum(irate(container_cpu_usage_seconds_total{container !="",container!="POD"}[2m])) by (namespace, container, pod, node) / (sum(container_spec_cpu_quota{container !="",container!="POD"}/100000) by (namespace, container, pod, node)) * 100 < +Inf > 80
+      for: 2m
+      labels:
+        severity: critical
+    - alert: PodMemoryHigh
+      annotations:
+        description: '容器memory使用率高 (目前:{{$value}}s) ({{$labels.namespace}}-{{$labels.pod}}--{{$labels.container}}--{{$labels.node}})'
+        summary: 容器memory使用率高
+      expr: sum (container_memory_rss{container !="",container!="POD"}) by (namespace,container, pod,node)/ sum(container_spec_memory_limit_bytes{container !="",container!="POD"}) by (namespace,container, pod,node) * 100 < +Inf > 80
+      for: 2m
+      labels:
+        severity: critical

@@ -1,0 +1,22 @@
+#apiVersion: monitoring.coreos.com/v1
+#kind: PrometheusRule
+#metadata:
+#  labels:
+#    app.kubernetes.io/name: kube-prometheus
+#    app.kubernetes.io/part-of: kube-prometheus
+#    prometheus: k8s
+#    role: alert-rules
+#  name: gateway-nginx
+#  namespace: monitoring
+#spec:
+#  groups:
+#    - name: middleware-mysql
+#      rules:
+#        - alert: NginxAccess5xx
+#          annotations:
+#            description: '{{$labels.method}} {{$labels.host}}{{$labels.host}}出现{{$labels.status}}响应码共{{$value}}次'
+#            summary: Nginx Access 5xx
+#          expr: nginx_ingress_controller_requests{status=~"4.*"} >0
+#          for: 1m
+#          labels:
+#            severity: critical

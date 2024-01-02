@@ -1,0 +1,219 @@
+---
+# Source: skywalking-helm/templates/oap-init.job.yaml
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# https://docs.sentry.io/server/installation/docker/#running-migrations
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "release-name-skywalking-helm-oap-init"
+  labels:
+    app: release-name
+    chart: skywalking-helm-4.5.0
+    component: "release-name-skywalking-helm-job"
+    heritage: Helm
+    release: release-name
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade,post-rollback
+    "helm.sh/hook-weight": "1"
+spec:
+  template:
+    metadata:
+      name: "release-name-oap-init"
+      labels:
+        app: release-name
+        component: "release-name-skywalking-helm-job"
+        release: release-name
+    spec:
+      serviceAccountName: release-name-skywalking-helm-oap
+      restartPolicy: Never
+      initContainers:
+      
+      - name: wait-for-elasticsearch
+        image: busybox:1.30
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 elasticsearch 9200 && exit 0 || sleep 5; done; exit 1']
+      containers:
+      - name: oap
+        image: skywalking.docker.scarf.sh/apache/skywalking-oap-server:9.6.0-java17
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 8
+            memory: 8Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx1g -Xms1g -Dmode=init"
+        - name: SW_STORAGE
+          value: elasticsearch
+        - name: SW_STORAGE_ES_CLUSTER_NODES
+          value: "elasticsearch:9200"
+        - name: SW_ES_USER
+          value: "xxx"
+        - name: SW_ES_PASSWORD
+          value: "xxx"
+        volumeMounts:
+      volumes:
+---
+# Source: skywalking-helm/templates/oap-init.job.yaml
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# https://docs.sentry.io/server/installation/docker/#running-migrations
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "release-name-skywalking-helm-oap-init"
+  labels:
+    app: release-name
+    chart: skywalking-helm-4.5.0
+    component: "release-name-skywalking-helm-job"
+    heritage: Helm
+    release: release-name
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade,post-rollback
+    "helm.sh/hook-weight": "1"
+spec:
+  template:
+    metadata:
+      name: "release-name-oap-init"
+      labels:
+        app: release-name
+        component: "release-name-skywalking-helm-job"
+        release: release-name
+    spec:
+      serviceAccountName: release-name-skywalking-helm-oap
+      restartPolicy: Never
+      initContainers:
+      
+      - name: wait-for-elasticsearch
+        image: busybox:1.30
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 elasticsearch 9200 && exit 0 || sleep 5; done; exit 1']
+      containers:
+      - name: oap
+        image: skywalking.docker.scarf.sh/apache/skywalking-oap-server:9.6.0-java17
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 8
+            memory: 8Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx1g -Xms1g -Dmode=init"
+        - name: SW_STORAGE
+          value: elasticsearch
+        - name: SW_STORAGE_ES_CLUSTER_NODES
+          value: "elasticsearch:9200"
+        - name: SW_ES_USER
+          value: "xxx"
+        - name: SW_ES_PASSWORD
+          value: "xxx"
+        volumeMounts:
+      volumes:
+---
+# Source: skywalking-helm/templates/oap-init.job.yaml
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# https://docs.sentry.io/server/installation/docker/#running-migrations
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "release-name-skywalking-helm-oap-init"
+  labels:
+    app: release-name
+    chart: skywalking-helm-4.5.0
+    component: "release-name-skywalking-helm-job"
+    heritage: Helm
+    release: release-name
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade,post-rollback
+    "helm.sh/hook-weight": "1"
+spec:
+  template:
+    metadata:
+      name: "release-name-oap-init"
+      labels:
+        app: release-name
+        component: "release-name-skywalking-helm-job"
+        release: release-name
+    spec:
+      serviceAccountName: release-name-skywalking-helm-oap
+      restartPolicy: Never
+      initContainers:
+      
+      - name: wait-for-elasticsearch
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command: ['sh', '-c', 'for i in $(seq 1 60); do nc -z -w3 elasticsearch 9200 && exit 0 || sleep 5; done; exit 1']
+      containers:
+      - name: oap
+        image: skywalking.docker.scarf.sh/apache/skywalking-oap-server:9.6.0-java17
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 8
+            memory: 8Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        env:
+        - name: JAVA_OPTS
+          value: "-Xmx1g -Xms1g -Dmode=init"
+        - name: SW_STORAGE
+          value: elasticsearch
+        - name: SW_STORAGE_ES_CLUSTER_NODES
+          value: "elasticsearch:9200"
+        - name: SW_ES_USER
+          value: "xxx"
+        - name: SW_ES_PASSWORD
+          value: "xxx"
+        volumeMounts:
+      volumes:

@@ -1,0 +1,610 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: "cluster health"
+      rules:
+        - alert: "CephHealthError"
+          annotations:
+            description: "集群状态为 HEALTH_ERROR 的时间超过 5 分钟。 请检查“ceph 健康详细信息”以获取更多信息。"
+            summary: "Ceph处于ERROR状态"
+          expr: "ceph_health_status == 2"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.2.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephHealthWarning"
+          annotations:
+            description: "集群状态为 HEALTH_WARN 的时间已超过 15 分钟。 请检查“ceph 健康详细信息”以获取更多信息。"
+            summary: "Ceph 处于 WARNING 状态"
+          expr: "ceph_health_status == 1"
+          for: "15m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+    - name: "mon"
+      rules:
+        - alert: "CephMonDownQuorumAtRisk"
+          annotations:
+            description: "{{ $min := query \"floor(count(ceph_mon_metadata) / 2) + 1\" | first | value }}法定人数需要大多数监视器 (x {{ $min }}) 去激活. 如果没有仲裁，集群将无法运行, 影响所有服务和连接的客户端. 以下观察者已关闭: {{- range query \"(ceph_mon_quorum_status == 0) + on(ceph_daemon) group_left(hostname) (ceph_mon_metadata * 0)\" }} - {{ .Labels.ceph_daemon }} on {{ .Labels.hostname }} {{- end }}"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#mon-down"
+            summary: "监视器法定人数面临风险"
+          expr: |
+            (
+              (ceph_health_detail{name="MON_DOWN"} == 1) * on() (
+                count(ceph_mon_quorum_status == 1) == bool (floor(count(ceph_mon_metadata) / 2) + 1)
+              )
+            ) == 1
+          for: "30s"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.3.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephMonDown"
+          annotations:
+            description: |
+              {{ $down := query "count(ceph_mon_quorum_status == 0)" | first | value }}{{ $s := "" }}{{ if gt $down 1.0 }}{{ $s = "s" }}{{ end }}有 {{ $down }} 观察者{{ $s }} 宕机. 法定人数仍然完好无损, 但是失去额外的监视器将使您的集群无法运行.  以下显示器已关闭: {{- range query "(ceph_mon_quorum_status == 0) + on(ceph_daemon) group_left(hostname) (ceph_mon_metadata * 0)" }}   - {{ .Labels.ceph_daemon }} on {{ .Labels.hostname }} {{- end }}
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#mon-down"
+            summary: "一台或多台显示器出现故障"
+          expr: |
+            count(ceph_mon_quorum_status == 0) <= (count(ceph_mon_metadata) - floor(count(ceph_mon_metadata) / 2) + 1)
+          for: "30s"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephMonDiskspaceCritical"
+          annotations:
+            description: "显示器存储区的可用空间非常低。 您应该增加显示器的可用空间。 传统部署上的默认目录为 /var/lib/ceph/mon-*/data/store.db ，Rook 的 mon pod 工作节点上的默认目录为 /var/lib/rook/mon-*/data/store.db 。 查找旧的、轮换版本的 *.log 和 MANIFEST*。 请勿触摸任何 *.sst 文件。 还要检查 /var/lib/rook 下的任何其他目录以及同一文件系统上的其他目录，通常 /var/log 和 /var/tmp 是罪魁祸首。 您的监控主机是； {{- range query \"ceph_mon_metadata\"}} - {{ .Labels.hostname }} {{- end }}"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#mon-disk-crit"
+            summary: "至少一台显示器上的文件系统空间严重不足"
+          expr: "ceph_health_detail{name=\"MON_DISK_CRIT\"} == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.3.2"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephMonDiskspaceLow"
+          annotations:
+            description: "显示器存储区的可用空间即将满（默认值>70%）。 您应该增加显示器的可用空间。 传统部署上的默认目录为 /var/lib/ceph/mon-*/data/store.db ，Rook 的 mon pod 工作节点上的默认目录为 /var/lib/rook/mon-*/data/store.db 。 查找旧的、轮换版本的 *.log 和 MANIFEST*。 请勿触摸任何 *.sst 文件。 还要检查 /var/lib/rook 下的任何其他目录以及同一文件系统上的其他目录，通常 /var/log 和 /var/tmp 是罪魁祸首。 您的监控主机是； {{- range query \"ceph_mon_metadata\"}} - {{ .Labels.hostname }} {{- end }}"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#mon-disk-low"
+            summary: "至少一台显示器上的驱动器空间即将满"
+          expr: "ceph_health_detail{name=\"MON_DISK_LOW\"} == 1"
+          for: "5m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephMonClockSkew"
+          annotations:
+            description: "Ceph 监视器依靠紧密同步的时间来维护仲裁和集群的一致性。 此事件表明至少一个星期一的时间与主要星期一的时间相差太远。 使用 ceph -s 查看集群状态。 这将显示哪些监视器受到影响。 使用“ceph time-sync-status”检查每个监视器主机上的时间同步状态以及 ntpd 或 chrony 守护程序的状态和对等点。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#mon-clock-skew"
+            summary: "检测到监视器之间的时钟偏差"
+          expr: "ceph_health_detail{name=\"MON_CLOCK_SKEW\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+    - name: "osd"
+      rules:
+        - alert: "CephOSDDownHigh"
+          annotations:
+            description: "{{ $value | humanize }}% or {{ with query \"count(ceph_osd_up == 0)\" }}{{ . | first | value }}{{ end }} of {{ with query \"count(ceph_osd_up)\" }}{{ . | first | value }}{{ end }} OSDs are down (>= 10%). The following OSDs are down: {{- range query \"(ceph_osd_up * on(ceph_daemon) group_left(hostname) ceph_osd_metadata) == 0\" }} - {{ .Labels.ceph_daemon }} on {{ .Labels.hostname }} {{- end }}"
+            summary: "超过 10% 的 OSD 已关闭"
+          expr: "count(ceph_osd_up == 0) / count(ceph_osd_up) * 100 >= 10"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephOSDHostDown"
+          annotations:
+            description: "The following OSDs are down: {{- range query \"(ceph_osd_up * on(ceph_daemon) group_left(hostname) ceph_osd_metadata) == 0\" }} - {{ .Labels.hostname }} : {{ .Labels.ceph_daemon }} {{- end }}"
+            summary: "OSD主机离线"
+          expr: "ceph_health_detail{name=\"OSD_HOST_DOWN\"} == 1"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.8"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDDown"
+          annotations:
+            description: |
+              {{ $num := query "count(ceph_osd_up == 0)" | first | value }}{{ $s := "" }}{{ if gt $num 1.0 }}{{ $s = "s" }}{{ end }}{{ $num }} OSD{{ $s }} down for over 5mins. The following OSD{{ $s }} {{ if eq $s "" }}is{{ else }}are{{ end }} down: {{- range query "(ceph_osd_up * on(ceph_daemon) group_left(hostname) ceph_osd_metadata) == 0"}} - {{ .Labels.ceph_daemon }} on {{ .Labels.hostname }} {{- end }}
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#osd-down"
+            summary: "OSD 已被标记"
+          expr: "ceph_health_detail{name=\"OSD_DOWN\"} == 1"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.2"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDNearFull"
+          annotations:
+            description: "一个或多个 OSD 已达到 NEARFULL 阈值。 使用“ceph healthDetail”和“ceph osd df”来识别问题。 要解决此问题，请向受影响的 OSD 故障域添加容量、恢复已关闭/失效的 OSD，或删除不需要的数据。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#osd-nearfull"
+            summary: "OSD 可用空间不足（接近满）"
+          expr: "ceph_health_detail{name=\"OSD_NEARFULL\"} == 1"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.3"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDFull"
+          annotations:
+            description: "OSD 已达到 FULL 阈值。 对共享受影响 OSD 的池的写入将被阻止。 使用“ceph healthDetail”和“ceph osd df”来识别问题。 要解决此问题，请向受影响的 OSD 故障域添加容量、恢复已关闭/失效的 OSD，或删除不需要的数据。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#osd-full"
+            summary: "OSD 已满，写入被阻止"
+          expr: "ceph_health_detail{name=\"OSD_FULL\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.6"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephOSDBackfillFull"
+          annotations:
+            description: "OSD 已达到 BACKFILL FULL 阈值。 这将阻止重新平衡操作完成。 使用“ceph healthDetail”和“ceph osd df”来识别问题。 要解决此问题，请向受影响的 OSD 故障域添加容量、恢复已关闭/失效的 OSD，或删除不需要的数据。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#osd-backfillfull"
+            summary: "OSD 太满，无法进行回填操作"
+          expr: "ceph_health_detail{name=\"OSD_BACKFILLFULL\"} > 0"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDTooManyRepairs"
+          annotations:
+            description: "从 OSD 读取已使用辅助 PG 将数据返回给客户端，表明驱动器可能出现故障。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#osd-too-many-repairs"
+            summary: "OSD 报告大量读取错误"
+          expr: "ceph_health_detail{name=\"OSD_TOO_MANY_REPAIRS\"} == 1"
+          for: "30s"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDTimeoutsPublicNetwork"
+          annotations:
+            description: "集群“公共”网络（前端）上的 OSD 心跳运行缓慢。 调查网络是否存在延迟或丢失问题。 使用“ceph health details”显示受影响的 OSD。"
+            summary: "网络问题导致 OSD 心跳延迟（公共网络）"
+          expr: "ceph_health_detail{name=\"OSD_SLOW_PING_TIME_FRONT\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDTimeoutsClusterNetwork"
+          annotations:
+            description: "集群“集群”网络（后端）上的 OSD 心跳速度很慢。 调查该子网上的网络是否存在延迟问题。 使用“ceph health details”显示受影响的 OSD。"
+            summary: "延迟 OSD 心跳的网络问题（集群网络）"
+          expr: "ceph_health_detail{name=\"OSD_SLOW_PING_TIME_BACK\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDInternalDiskSizeMismatch"
+          annotations:
+            description: "一个或多个 OSD 在元数据和设备大小之间存在内部不一致。 这可能会导致 OSD 将来崩溃。 您应该重新部署受影响的 OSD。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#bluestore-disk-size-mismatch"
+            summary: "OSD尺寸不一致错误"
+          expr: "ceph_health_detail{name=\"BLUESTORE_DISK_SIZE_MISMATCH\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephDeviceFailurePredicted"
+          annotations:
+            description: "设备运行状况模块已确定一台或多台设备很快就会出现故障。 要查看设备状态，请使用“ceph device ls”。 要显示特定设备，请使用“ceph device info <dev id>”。 将 OSD 标记出来，以便数据可以迁移到其他 OSD。 OSD 耗尽后，销毁 OSD、更换设备并重新部署 OSD。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#id2"
+            summary: "预计很快就会出现故障的设备"
+          expr: "ceph_health_detail{name=\"DEVICE_HEALTH\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephDeviceFailurePredictionTooHigh"
+          annotations:
+            description: "设备运行状况模块已确定预测发生故障的设备无法自动修复，因为为了确保性能和可用性，将从集群中删除太多 OSD。 通过添加新的 OSD 以便重新定位数据来防止数据完整性问题。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#device-health-toomany"
+            summary: "预计有太多设备出现故障，无法解决"
+          expr: "ceph_health_detail{name=\"DEVICE_HEALTH_TOOMANY\"} == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.7"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephDeviceFailureRelocationIncomplete"
+          annotations:
+            description: "设备健康模块已确定一台或多台设备即将发生故障，但将设备上的数据重新定位到集群中其他 OSD 的正常过程被阻止。 \n确保群集有可用的可用空间。 可能需要向集群添加容量以允许来自故障设备的数据成功迁移，或者启用平衡器。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#device-health-in-use"
+            summary: "预测到设备故障，但无法重新定位数据"
+          expr: "ceph_health_detail{name=\"DEVICE_HEALTH_IN_USE\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDFlapping"
+          annotations:
+            description: "OSD {{ $labels.ceph_daemon }} on {{ $labels.hostname }} was marked down and back up {{ $value | humanize }}每分钟一次，持续 5 分钟。 这可能表明集群网络或公共网络（如果未部署集群网络）存在网络问题（延迟、数据包丢失、MTU 不匹配）。 检查列出的主机上的网络统计信息。"
+            documentation: "https://docs.ceph.com/en/latest/rados/troubleshooting/troubleshooting-osd#flapping-osds"
+            summary: "网络问题导致 OSD 不稳定（相互标记）"
+          expr: "(rate(ceph_osd_up[5m]) * on(ceph_daemon) group_left(hostname) ceph_osd_metadata) * 60 > 1"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.4"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephOSDReadErrors"
+          annotations:
+            description: "OSD 遇到读取错误，但 OSD 通过重试读取已恢复。 这可能表明硬件或内核存在问题。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#bluestore-spurious-read-errors"
+            summary: "检测到设备读取错误"
+          expr: "ceph_health_detail{name=\"BLUESTORE_SPURIOUS_READ_ERRORS\"} == 1"
+          for: "30s"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephPGImbalance"
+          annotations:
+            description: "OSD {{ $labels.ceph_daemon }} on {{ $labels.hostname }} 与平均 PG 计数偏差超过 30%。"
+            summary: "PG 在 OSD 之间不平衡"
+          expr: |
+            abs(
+              ((ceph_osd_numpg > 0) - on (job) group_left avg(ceph_osd_numpg > 0) by (job)) /
+              on (job) group_left avg(ceph_osd_numpg > 0) by (job)
+            ) * on (ceph_daemon) group_left(hostname) ceph_osd_metadata > 0.30
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.4.5"
+            severity: "warning"
+            type: "ceph_default"
+    - name: "mds"
+      rules:
+        - alert: "CephFilesystemDamaged"
+          annotations:
+            description: "文件系统元数据已损坏。 数据可能无法访问。 从 MDS 守护程序管理套接字分析指标，或升级至支持。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages#cephfs-health-messages"
+            summary: "CephFS 文件系统已损坏。"
+          expr: "ceph_health_detail{name=\"MDS_DAMAGE\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.5.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephFilesystemOffline"
+          annotations:
+            description: "所有 MDS 等级均不可用。 管理元数据的 MDS 守护进程已关闭，导致文件系统脱机。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages/#mds-all-down"
+            summary: "CephFS 文件系统离线"
+          expr: "ceph_health_detail{name=\"MDS_ALL_DOWN\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.5.3"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephFilesystemDegraded"
+          annotations:
+            description: "一个或多个元数据守护程序（MDS 等级）发生故障或处于损坏状态。 最好的情况是文件系统部分可用，最坏的情况是文件系统完全不可用."
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages/#fs-degraded"
+            summary: "CephFS 文件系统降级"
+          expr: "ceph_health_detail{name=\"FS_DEGRADED\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.5.4"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephFilesystemMDSRanksLow"
+          annotations:
+            description: "文件系统的“max_mds”设置定义了文件系统中 MDS 等级的数量。 当前活动 MDS 守护程序的数量小于此值。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages/#mds-up-less-than-max"
+            summary: "Ceph MDS 守护进程计数低于配置的数量"
+          expr: "ceph_health_detail{name=\"MDS_UP_LESS_THAN_MAX\"} > 0"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephFilesystemInsufficientStandby"
+          annotations:
+            description: "Standby_count_wanted 所需的最小备用守护程序数量小于当前备用守护程序数量。 调整备用计数或增加 MDS 守护程序的数量。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages/#mds-insufficient-standby"
+            summary: "Ceph 文件系统备用守护进程太少"
+          expr: "ceph_health_detail{name=\"MDS_INSUFFICIENT_STANDBY\"} > 0"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephFilesystemFailureNoStandby"
+          annotations:
+            description: "MDS 守护程序发生故障，仅留下一个活动列，没有可用的备用列。 调查故障原因或添加备用MDS。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages/#fs-with-failed-mds"
+            summary: "MDS 守护程序失败，没有更多备用可用"
+          expr: "ceph_health_detail{name=\"FS_WITH_FAILED_MDS\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.5.5"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephFilesystemReadOnly"
+          annotations:
+            description: "由于写入元数据池时出现意外错误，文件系统已切换为只读。 分析 MDS 守护程序管理套接字的输出，或升级到支持。"
+            documentation: "https://docs.ceph.com/en/latest/cephfs/health-messages#cephfs-health-messages"
+            summary: "由于写入错误，CephFS 文件系统处于只读模式"
+          expr: "ceph_health_detail{name=\"MDS_HEALTH_READ_ONLY\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.5.2"
+            severity: "critical"
+            type: "ceph_default"
+    - name: "mgr"
+      rules:
+        - alert: "CephMgrModuleCrash"
+          annotations:
+            description: "一个或多个 mgr 模块已崩溃且尚未得到管理员确认。 崩溃的模块可能会影响集群内的功能。 使用“ceph crash”命令确定哪个模块发生故障，并将其存档以确认故障。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#recent-mgr-module-crash"
+            summary: "管理器模块最近崩溃了"
+          expr: "ceph_health_detail{name=\"RECENT_MGR_MODULE_CRASH\"} == 1"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.6.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephMgrPrometheusModuleInactive"
+          annotations:
+            description: "The mgr/prometheus module at {{ $labels.instance }} is unreachable. 这可能意味着该模块已被禁用或 mgr 守护程序本身已关闭。 如果没有 mgr/prometheus 模块，指标和警报将不再起作用。 打开管理节点或工具箱 pod 的 shell，并使用“ceph -s”来确定 mgr 是否处于活动状态。 如果 mgr 未激活，请重新启动它，否则您可以使用“ceph mgr module ls”确定模块状态。 如果未将其列为已启用，请使用“ceph mgr module enable prometheus”启用它。"
+            summary: "The mgr/prometheus module is not available"
+          expr: "up{job=\"ceph\"} == 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.6.2"
+            severity: "critical"
+            type: "ceph_default"
+    - name: "pgs"
+      rules:
+        - alert: "CephPGsInactive"
+          annotations:
+            description: "{{ $value }} PG 在泳池中闲置时间超过 5 分钟 {{ $labels.name }}. 非活动置放群组无法处理读/写请求。"
+            summary: "一个或多个置放群组处于非活动状态"
+          expr: "ceph_pool_metadata * on(pool_id,instance) group_left() (ceph_pg_total - ceph_pg_active) > 0"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPGsUnclean"
+          annotations:
+            description: "{{ $value }} PG 在泳池中不干净的时间超过 15 分钟 {{ $labels.name }}. 不干净的 PG 尚未从之前的故障中恢复。"
+            summary: "一个或多个归置组被标记为不干净"
+          expr: "ceph_pool_metadata * on(pool_id,instance) group_left() (ceph_pg_total - ceph_pg_clean) > 0"
+          for: "15m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.2"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephPGsDamaged"
+          annotations:
+            description: "在数据一致性检查（清理）过程中，至少有一个 PG 被标记为已损坏或不一致。 检查哪个 PG 受到影响，并在必要时尝试手动修复。 要列出有问题的归置组，请使用“rados list-inconsistency-pg <pool>”。 要修复 PG，请使用“ceph pg Repair <pg_num>”命令。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-damaged"
+            summary: "归置组损坏，需要人工干预"
+          expr: "ceph_health_detail{name=~\"PG_DAMAGED|OSD_SCRUB_ERRORS\"} == 1"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.4"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPGRecoveryAtRisk"
+          annotations:
+            description: "由于一个或多个 OSD 处于或高于“已满”阈值，因此数据冗余存在风险。 向集群添加更多容量、恢复已关闭/失效的 OSD，或删除不需要的数据。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-recovery-full"
+            summary: "OSD 太满而无法恢复"
+          expr: "ceph_health_detail{name=\"PG_RECOVERY_FULL\"} == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.5"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPGUnavilableBlockingIO"
+          annotations:
+            description: "数据可用性降低，影响集群提供 I/O 服务的能力。 一个或多个归置组 (PG) 处于阻止 I/O 的状态。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-availability"
+            summary: "PG 不可用，阻塞 I/O"
+          expr: "((ceph_health_detail{name=\"PG_AVAILABILITY\"} == 1) - scalar(ceph_health_detail{name=\"OSD_DOWN\"})) == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.3"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPGBackfillAtRisk"
+          annotations:
+            description: "由于集群内缺乏可用空间，数据冗余可能面临风险。 一个或多个 OSD 已达到“回填”阈值。 添加更多容量，或删除不需要的数据。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-backfill-full"
+            summary: "由于缺乏可用空间，回填操作被阻止"
+          expr: "ceph_health_detail{name=\"PG_BACKFILL_FULL\"} == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.7.6"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPGNotScrubbed"
+          annotations:
+            description: "最近未清理一个或多个 PG。 清理检查元数据完整性，防止位腐烂。 他们检查元数据在数据副本之间是否一致。 当 PG 错过其清理间隔时，可能表明清理窗口太小，或者 PG 在清理窗口期间未处于“干净”状态。 您可以使用以下命令手动启动清理： ceph pg scrap <pgid>"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-not-scrubbed"
+            summary: "归置组尚未清理"
+          expr: "ceph_health_detail{name=\"PG_NOT_SCRUBBED\"} == 1"
+          for: "5m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephPGsHighPerOSD"
+          annotations:
+            description: "每个 OSD 的归置组数量过高（超过 mon_max_pg_per_osd 设置）。\n 检查是否尚未为任何具有“ceph osd pool autoscale-status”的池禁用 pg_autoscaler，并且所选配置文件是否合适。 您还可以调整池的 target_size_ratio 以根据池的预期相对大小来指导自动缩放器（'ceph osd pool set cephfs.cephfs.meta target_size_ratio .1'）或将 pg_autoscaler 模式设置为 'warn' 并调整 pg_num 适用于一个或多个池。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks/#too-many-pgs"
+            summary: "每个 OSD 的归置组太高"
+          expr: "ceph_health_detail{name=\"TOO_MANY_PGS\"} == 1"
+          for: "1m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephPGNotDeepScrubbed"
+          annotations:
+            description: "最近有一个或多个 PG 没有被深度清理。 深层磨砂可防止位腐烂。 他们比较数据副本以确保一致性。 当 PG 错过其深度清理间隔时，可能表明窗口太小或 PG 在深度清理窗口期间未处于“干净”状态。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pg-not-deep-scrubbed"
+            summary: "归置组尚未深度清理"
+          expr: "ceph_health_detail{name=\"PG_NOT_DEEP_SCRUBBED\"} == 1"
+          for: "5m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+    - name: "nodes"
+      rules:
+        - alert: "CephNodeRootFilesystemFull"
+          annotations:
+            description: "根卷已满，非常危险: {{ $value | humanize }}% free."
+            summary: "根文件系统已满危险"
+          expr: "node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} * 100 < 5"
+          for: "5m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.8.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephNodeNetworkPacketDrops"
+          annotations:
+            description: "Node {{ $labels.instance }} 接口上出现数据包丢失 > 0.5% 或 > 10 个数据包/秒 {{ $labels.device }}."
+            summary: "一个或多个 NIC 报告数据包丢失"
+          expr: |
+            (
+              rate(node_network_receive_drop_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_drop_total{device!="lo"}[1m])
+            ) / (
+              rate(node_network_receive_packets_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_packets_total{device!="lo"}[1m])
+            ) >= 0.0050000000000000001 and (
+              rate(node_network_receive_drop_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_drop_total{device!="lo"}[1m])
+            ) >= 10
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.8.2"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephNodeNetworkPacketErrors"
+          annotations:
+            description: "Node {{ $labels.instance }} 接口上出现数据包错误 > 0.01% 或 > 10 个数据包/秒 {{ $labels.device }}."
+            summary: "一个或多个 NIC 报告数据包错误"
+          expr: |
+            (
+              rate(node_network_receive_errs_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_errs_total{device!="lo"}[1m])
+            ) / (
+              rate(node_network_receive_packets_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_packets_total{device!="lo"}[1m])
+            ) >= 0.0001 or (
+              rate(node_network_receive_errs_total{device!="lo"}[1m]) +
+              rate(node_network_transmit_errs_total{device!="lo"}[1m])
+            ) >= 10
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.8.3"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephNodeNetworkBondDegraded"
+          annotations:
+            summary: "节点上的债券降级 {{ $labels.instance }}"
+            description: "Bond {{ $labels.master }} 在节点上降级 {{ $labels.instance }}."
+          expr: |
+            node_bonding_slaves - node_bonding_active != 0
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephNodeDiskspaceWarning"
+          annotations:
+            description: "Mountpoint {{ $labels.mountpoint }} on {{ $labels.nodename }} 根据 48 小时跟踪填充率，将在不到 5 天内装满。"
+            summary: "主机文件系统可用空间越来越低"
+          expr: "predict_linear(node_filesystem_free_bytes{device=~\"/.*\"}[2d], 3600 * 24 * 5) *on(instance) group_left(nodename) node_uname_info < 0"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.8.4"
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephNodeInconsistentMTU"
+          annotations:
+            description: "Node {{ $labels.instance }} 具有不同的 MTU 大小 ({{ $value }}) 比命名设备的中位数 {{ $labels.device }}."
+            summary: "跨 Ceph 主机的 MTU 设置不一致"
+          expr: "node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0) ==  scalar(    max by (device) (node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0)) !=      quantile by (device) (.5, node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0))  )or node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0) ==  scalar(    min by (device) (node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0)) !=      quantile by (device) (.5, node_network_mtu_bytes * (node_network_up{device!=\"lo\"} > 0))  )"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+    - name: "pools"
+      rules:
+        - alert: "CephPoolBackfillFull"
+          annotations:
+            description: "池即将接近满阈值，这将阻止恢复/回填操作完成。 考虑增加更多容量。"
+            summary: "池中的可用空间太低，无法进行恢复/回填"
+          expr: "ceph_health_detail{name=\"POOL_BACKFILLFULL\"} > 0"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephPoolFull"
+          annotations:
+            description: "池已达到其最大配额，或者支持该池的 OSD 已达到 FULL 阈值。 在这个问题得到解决之前，对池的写入将被阻止。 池细分（前 5 名） {{- range query \"topk(5, sort_desc(ceph_pool_percent_used * on(pool_id) group_right ceph_pool_metadata))\" }} - {{ .Labels.name }} at {{ .Value }}% {{- end }} 增加池的配额，或者先向集群添加容量，然后再增加池的配额（例如 ceph osd pool setquota <pool_name> max_bytes <bytes>）"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#pool-full"
+            summary: "池已满 - 写入被阻止"
+          expr: "ceph_health_detail{name=\"POOL_FULL\"} > 0"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.9.1"
+            severity: "critical"
+            type: "ceph_default"
+        - alert: "CephPoolNearFull"
+          annotations:
+            description: "池已超过警告（已满百分比）阈值，或者支持该池的 OSD 已达到 NEARFULL 阈值。 写入可能会继续，但如果没有提供更多可用容量，您将面临池变为只读的风险。 通过查看 QUOTA BYTES 和 STORED，通过“ceph dfDetail”确定受影响的池。 增加池的配额，或者首先向集群添加容量，然后增加池的配额（例如 ceph osd pool setquota <pool_name> max_bytes <bytes>）。 还要确保平衡器处于活动状态。"
+            summary: "一个或多个 Ceph 池即将满"
+          expr: "ceph_health_detail{name=\"POOL_NEAR_FULL\"} > 0"
+          for: "5m"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+    - name: "healthchecks"
+      rules:
+        - alert: "CephSlowOps"
+          annotations:
+            description: "{{ $value }} OSD 请求处理时间太长（超出 osd_op_complaint_time）"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#slow-ops"
+            summary: "OSD 操作完成缓慢"
+          expr: "ceph_healthcheck_slow_ops > 0"
+          for: "30s"
+          labels:
+            severity: "warning"
+            type: "ceph_default"
+        - alert: "CephDaemonSlowOps"
+          for: "30s"
+          expr: "ceph_daemon_health_metrics{type=\"SLOW_OPS\"} > 0"
+          labels:
+            severity: 'warning'
+            type: 'ceph_default'
+          annotations:
+            summary: "{{ $labels.ceph_daemon }} 操作完成缓慢"
+            description: "{{ $labels.ceph_daemon }} 操作处理时间太长（超出投诉时间）"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#slow-ops"
+    - name: "rados"
+      rules:
+        - alert: "CephObjectMissing"
+          annotations:
+            description: "即使所有 OSD 均已启动，也无法找到最新版本的 RADOS 对象。 客户端对此对象的 I/O 请求将被阻塞（挂起）。 解决此问题可能需要将对象手动回滚到之前的版本，并手动验证。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#object-unfound"
+            summary: "标记为“未找到”的对象"
+          expr: "(ceph_health_detail{name=\"OBJECT_UNFOUND\"} == 1) * on() (count(ceph_osd_up == 1) == bool count(ceph_osd_metadata)) == 1"
+          for: "30s"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.10.1"
+            severity: "critical"
+            type: "ceph_default"
+    - name: "generic"
+      rules:
+        - alert: "CephDaemonCrash"
+          annotations:
+            description: "一个或多个守护进程最近崩溃了，需要予以确认。 此通知可确保软件崩溃不会被忽视。 要确认崩溃，请使用“ceph crash archive <id>”命令。"
+            documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks/#recent-crash"
+            summary: "一个或多个 Ceph 守护进程已崩溃，正在等待确认"
+          expr: "ceph_health_detail{name=\"RECENT_CRASH\"} == 1"
+          for: "1m"
+          labels:
+            oid: "1.3.6.1.4.1.50495.1.2.1.1.2"
+            severity: "critical"
+            type: "ceph_default"

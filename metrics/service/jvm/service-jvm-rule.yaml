@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app.kubernetes.io/name: kube-prometheus
+    app.kubernetes.io/part-of: kube-prometheus
+    prometheus: k8s
+    role: alert-rules
+  name: service-jvm
+  namespace: monitoring
+spec:
+  groups:
+  - name: service-jvm
+    rules:
+    - alert: ServiceJVMGC
+      annotations:
+        description: '服务jvm-gc出现 (({{$labels.namespace}}-{{$labels.pod}}--{{$labels.container}})'
+        summary: 服务jvm-gc出现
+      expr: jvm_gc_collection_seconds_sum{job="service-jvm", gc="G1 Old Generation"} > 0
+      for: 2m
+      labels:
+        severity: critical
+    - alert: ServiceJVMHeapHigh
+      annotations:
+        description: '服务jvm-堆内存使用率高 (({{$labels.namespace}}-{{$labels.pod}}--{{$labels.container}})'
+        summary: 服务jvm-堆内存使用率高
+      expr: max(jvm_memory_bytes_used{job="service-jvm", area="heap"}) by (job, namespace, service, pod, container)/max(jvm_memory_bytes_max{job="service-jvm", area="heap"}) by (job, namespace, service, pod, container) > 0.85
+      for: 2m
+      labels:
+        severity: critical
+    - alert: ServiceJVMNoHeap
+      annotations:
+        description: '服务jvm-非堆内存使用率 (({{$labels.namespace}}-{{$labels.pod}}--{{$labels.container}})'
+        summary: 服务jvm-非堆内存使用率
+      expr: max(jvm_memory_pool_bytes_used{job="service-jvm", pool="G1 Old Gen"}) by (job, namespace, service, pod, container)/max(jvm_memory_pool_bytes_max{job="service-jvm", pool="G1 Old Gen"}) by (job, namespace, service, pod, container) > 0.85
+      for: 2m
+      labels:
+        severity: critical

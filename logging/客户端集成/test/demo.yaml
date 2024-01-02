@@ -1,0 +1,67 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: template_sever_name
+  namespace: template_namespace_name
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: template_sever_name
+  strategy:
+    rollingUpdate:
+      maxSurge: 90%
+      maxUnavailable: 90%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: template_sever_name
+    spec:
+      containers:
+        - name: test
+          volumeMounts:
+            - mountPath: /app/logs
+              name: logs-dir
+        - name: promtail
+          args:
+            - -config.file=/etc/promtail/config.yaml
+            - -config.expand-env=true
+          image: grafana/promtail:2.8.3-amd64
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SERVICENAME
+              value: template_sever_name
+          resources:
+            requests:
+              cpu: 100m
+              memory: 0.1Gi
+              ephemeral-storage: 0.1Gi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+              ephemeral-storage: 1Gi
+          volumeMounts:
+            - mountPath: /etc/localtime
+              name: date-config
+            - mountPath: /mnt
+              name: logs-dir
+            - mountPath: /etc/promtail/config.yaml
+              name: logging-loki-promtail-service-log
+              readOnly: true
+              subPath: config.yaml
+      volumes:
+        - hostPath:
+            path: /etc/localtime
+            type: ""
+          name: date-config
+        - emptyDir: {}
+          name: logs-dir
+        - configMap:
+            name: logging-loki-promtail-service-log
+          name: logging-loki-promtail-service-log
