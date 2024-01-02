@@ -21,19 +21,6 @@ kubectl -n monitor-log delete pvc data-loki-loki-distributed-index-gateway-0 dat
 ```
 
 
-
-```
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 10000m
-      memory: 12800Mi
-```
-
-
-
 # 调试
 
 
