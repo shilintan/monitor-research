@@ -89,6 +89,7 @@ kubectl -n monitoring describe pod prometheus-k8s-1
 kubectl -n monitoring describe pod -l app.kubernetes.io/component=grafana
 kubectl -n monitoring describe pod prometheus-operator-776c6c6b87-mfdnt
 kubectl -n monitoring delete pod prometheus-k8s-0
+kubectl -n monitoring delete pod prometheus-k8s-1
 kubectl -n monitoring delete pod dingding-webhook-6cdf9b9cbc-t6vd7
 kubectl -n monitoring delete pod alertmanager-main-0
 kubectl -n monitoring delete pod alertmanager-main-1

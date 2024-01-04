@@ -239,7 +239,7 @@ loki:
   # -- Check https://grafana.com/docs/loki/latest/configuration/#storage_config for more info on how to configure storages
   storageConfig:
     aws:
-      s3: s3://sss:sss@rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local/monitor-log-loki
+      s3: s3://aa:bb@rook-ceph-rgw-my-store.rook-ceph.svc.cluster.local/monitor-log-loki
       bucketnames: ""
       s3forcepathstyle: true
     boltdb_shipper:
@@ -1600,26 +1600,84 @@ ruler:
   # -- Directories containing rules files
   directories:
     tenant_foo:
+      k8s.txt: |
+        groups:
+          - name: k8s_error
+            rules:
+              - alert: K8SError
+                expr: count_over_time({namespace="kube-system",scrape_job="kubernetes-pods"}[1m]|="level=error") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: k8s error
+          - name: openebs_error
+            rules:
+              - alert: OpenebsError
+                expr: count_over_time({namespace="openebs",scrape_job="kubernetes-pods"}[1m]|="E0") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: openebs error
+          - name: rook_ceph_error
+            rules:
+              - alert: RookCephError
+                expr: count_over_time({namespace="rook-ceph",scrape_job="kubernetes-pods"}[1m]|="E0") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: rook ceph error
+      monitor.txt: |
+        groups:
+          - name: loki_error
+            rules:
+              - alert: LokiError
+                expr: count_over_time({namespace="monitor-log",scrape_job="kubernetes-pods"}[1m]|="level=error") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: loki error
+          - name: prometheus_error
+            rules:
+              - alert: PrometheusError
+                expr: count_over_time({namespace="monitoring",scrape_job="kubernetes-pods"}[1m]|="level=error") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: prometheus error
+          - name: skywalking_error
+            rules:
+              - alert: SkywalkingError
+                expr: count_over_time({namespace="monitor-trace",scrape_job="kubernetes-pods"}[1m]|="level=error") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: skywalking error
       gateway.txt: |
         groups:
-          - name: nginx_access_error_service
+          - name: service_access_nginx_access_error
             rules:
-              - alert: NginxAccessLogErrorServiceTest
+              - alert: ServiceAccessNginxAccessError
                 expr: sum by (method, request_proto, vhost, path) ( count_over_time({scrape_job="gateway-nginx", filename="/mnt/access.log", app="nginx-service"}[1m]|json|status=~"5.*")) > 0
                 for: 1m
                 labels:
                   severity: critical
                 annotations:
-                  summary: test service nginx access error
-          - name: nginx_access_slow_service
+                  summary: service access nginx access error
+          - name: service_access_nginx_slow
             rules:
-              - alert: NginxAccessLogSlowServiceTest
+              - alert: ServiceAccessNginxSlow
                 expr: sum by (method, request_proto, vhost, path) ( count_over_time({scrape_job="gateway-nginx", filename="/mnt/access.log", app="nginx-service"}[1m]|json|request_time > 1)) >0
                 for: 1m
                 labels:
                   severity: critical
                 annotations:
-                  summary: test service nginx access slow
+                  summary: service access nginx slow
       service.txt: |
         groups:
           - name: service_error_test
@@ -1631,6 +1689,63 @@ ruler:
                   severity: critical
                 annotations:
                   summary: test service log error
+      middleware.txt: |
+        groups:
+          - name: mysql_error
+            rules:
+              - alert: MysqlError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"mysql.*"}[1m]|= "ERROR") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: mysql error
+          - name: mysql_error
+            rules:
+              - alert: MysqlError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"mysql.*"}[1m]|= "ERROR") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: mysql error
+          - name: mongodb_error
+            rules:
+              - alert: MongodbError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"mongodb.*"}[1m]|json|s = "E") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: mongodb error
+          - name: elasticsearch_error
+            rules:
+              - alert: ElasticsearchError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"elasticsearch.*"}[1m]|="level=error") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: elasticsearch error
+          - name: nacos_error
+            rules:
+              - alert: NacosError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"elasticsearch.*"}[1m]|="Exception") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: nacos error
+          - name: xxljob_error
+            rules:
+              - alert: XxljobError
+                expr: count_over_time({scrape_job="kubernetes-pods", namespace="prod", app=~"elasticsearch.*"}[1m]|="Exception") > 0
+                for: 1m
+                labels:
+                  severity: critical
+                annotations:
+                  summary: xxljob error
+
 # Configuration for the index-gateway
 indexGateway:
   # -- Specifies whether the index-gateway should be enabled
