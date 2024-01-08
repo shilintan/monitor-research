@@ -90,11 +90,11 @@ kubectl -n monitoring describe pod -l app.kubernetes.io/component=grafana
 kubectl -n monitoring describe pod prometheus-operator-776c6c6b87-mfdnt
 kubectl -n monitoring delete pod prometheus-k8s-0
 kubectl -n monitoring delete pod prometheus-k8s-1
-kubectl -n monitoring delete pod dingding-webhook-6cdf9b9cbc-t6vd7
 kubectl -n monitoring delete pod alertmanager-main-0
 kubectl -n monitoring delete pod alertmanager-main-1
-kubectl -n monitoring delete pvc grafana prometheus-k8s-db-prometheus-k8s-0
+kubectl -n monitoring delete pod -l app=dingding-webhook
 
+kubectl -n monitoring delete pvc grafana prometheus-k8s-db-prometheus-k8s-0
 
 kubectl -n monitoring get networkpolicy
 
@@ -102,6 +102,7 @@ kubectl -n monitoring delete networkpolicy grafana prometheus-adapter prometheus
 
 
 
+kubectl -n monitoring logs -f --tail 300 deploy/kube-state-metrics
 kubectl -n monitoring logs -f --tail 300 deploy/prometheus-operator
 kubectl -n monitoring logs -f --tail 300 deploy/grafana
 kubectl -n monitoring logs -f --tail 300 prometheus-k8s-0
@@ -109,7 +110,6 @@ kubectl -n monitoring logs -f --tail 300 prometheus-k8s-1
 kubectl -n monitoring logs -f --tail 300 alertmanager-main-0
 kubectl -n monitoring logs -f --tail 300 alertmanager-main-1
 kubectl -n monitoring logs -f --tail 300 deploy/dingding-webhook
-kubectl -n monitoring logs -f --tail 300 deploy/kube-state-metrics
 
 kubectl -n monitoring logs -f --tail 300 dingding-webhook-86b8d959c-9ggxq
 kubectl -n monitoring describe pod dingding-webhook-86b8d959c-9ggxq

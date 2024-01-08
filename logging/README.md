@@ -70,7 +70,7 @@ kubectl -n monitor-log delete pod loki-loki-distributed-compactor-0
 kubectl -n monitor-log delete pod loki-loki-distributed-compactor-1
 
 
-kubectl -n monitor-log exec -it loki-loki-distributed-ruler-79697c78b6-shxwl -- sh
+kubectl -n monitor-log exec -it loki-loki-distributed-ruler-0 -- sh
     curl http://alertmanager-main.monitoring.svc.cluster.local:9093/api/v1/alerts
 kubectl -n monitor-log exec -it loki-loki-distributed-ingester-0 -- sh
 ```
